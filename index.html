@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PixelBatch - Browser Image Batch Tool</title>
+  <meta
+    name="description"
+    content="Batch resize, crop, convert, rename, and zip product images locally in your browser."
+  >
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Source+Sans+3:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero card">
+      <div>
+        <p class="eyebrow">Client-Side Batch Processing</p>
+        <h1>PixelBatch</h1>
+        <p class="hero-copy">
+          Resize, crop, convert, compress, rename, and export product images without leaving the browser.
+        </p>
+      </div>
+      <div class="hero-meta">
+        <div class="privacy-note">
+          Images are processed locally in your browser and are not uploaded to any server.
+        </div>
+        <div class="hero-actions">
+          <label class="field compact">
+            <span>Theme</span>
+            <select id="theme-select">
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+          <button id="reset-settings-btn" class="ghost-button" type="button">Reset Settings</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <section class="card section">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">1. Image Upload</p>
+              <h2>Input</h2>
+            </div>
+          </div>
+          <label id="dropzone" class="dropzone" for="file-input">
+            <input id="file-input" type="file" accept="image/*" multiple hidden>
+            <strong>Drop images here</strong>
+            <span>or click to select JPG, PNG, WebP, BMP, GIF, AVIF</span>
+          </label>
+          <div class="quick-actions">
+            <button id="add-files-btn" type="button">Add Files</button>
+            <button id="clear-queue-btn" class="ghost-button" type="button">Clear Queue</button>
+          </div>
+          <p id="safety-warning" class="inline-note hidden" aria-live="polite"></p>
+        </section>
+
+        <section class="card section">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">2. Processing Settings</p>
+              <h2>Transform</h2>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field">
+              <span>Preset</span>
+              <select id="preset-select"></select>
+            </label>
+            <label class="field">
+              <span>Custom Preset Name</span>
+              <input id="preset-name-input" type="text" placeholder="Dare Rise Website Product">
+            </label>
+            <div class="split-actions">
+              <button id="save-preset-btn" type="button">Save Preset</button>
+              <button id="delete-preset-btn" class="ghost-button" type="button">Delete Preset</button>
+            </div>
+          </div>
+
+          <div class="field-grid two">
+            <label class="field">
+              <span>Resize Mode</span>
+              <select id="resize-mode">
+                <option value="exact">Exact Size</option>
+                <option value="width">Resize by Width</option>
+                <option value="height">Resize by Height</option>
+                <option value="max">Maximum Dimensions</option>
+                <option value="percentage">Percentage Scale</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Aspect Ratio</span>
+              <select id="aspect-ratio">
+                <option value="original">Original</option>
+                <option value="1:1">1:1</option>
+                <option value="2:3" selected>2:3</option>
+                <option value="3:2">3:2</option>
+                <option value="3:4">3:4</option>
+                <option value="4:3">4:3</option>
+                <option value="4:5">4:5</option>
+                <option value="5:4">5:4</option>
+                <option value="9:16">9:16</option>
+                <option value="16:9">16:9</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="field-grid three">
+            <label class="field">
+              <span>Width</span>
+              <input id="width-input" type="number" min="1" step="1" value="1024">
+            </label>
+            <label class="field">
+              <span>Height</span>
+              <input id="height-input" type="number" min="1" step="1" value="1536">
+            </label>
+            <label class="field">
+              <span>Scale %</span>
+              <input id="scale-input" type="number" min="1" max="400" step="1" value="100">
+            </label>
+          </div>
+
+          <div class="field-grid two">
+            <label class="field">
+              <span>Custom Ratio W</span>
+              <input id="custom-ratio-width" type="number" min="1" step="1" value="2">
+            </label>
+            <label class="field">
+              <span>Custom Ratio H</span>
+              <input id="custom-ratio-height" type="number" min="1" step="1" value="3">
+            </label>
+          </div>
+
+          <div class="field-grid two">
+            <label class="field">
+              <span>Crop Mode</span>
+              <select id="crop-mode">
+                <option value="cover" selected>Cover</option>
+                <option value="contain">Contain</option>
+                <option value="fill">Fill</option>
+                <option value="fit">Fit Inside</option>
+                <option value="exact">Exact Crop</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Crop Anchor</span>
+              <select id="crop-anchor">
+                <option value="center" selected>Center</option>
+                <option value="top">Top</option>
+                <option value="bottom">Bottom</option>
+                <option value="left">Left</option>
+                <option value="right">Right</option>
+                <option value="focal">Manual Focal</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="field-grid two">
+            <label class="field">
+              <span>Focal X %</span>
+              <input id="focal-x" type="range" min="0" max="100" step="1" value="50">
+            </label>
+            <label class="field">
+              <span>Focal Y %</span>
+              <input id="focal-y" type="range" min="0" max="100" step="1" value="50">
+            </label>
+          </div>
+
+          <div class="field-grid two">
+            <label class="field">
+              <span>Output Format</span>
+              <select id="format-select">
+                <option value="image/webp" selected>WebP</option>
+                <option value="image/png">PNG</option>
+                <option value="image/jpeg">JPEG</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Quality</span>
+              <input id="quality-input" type="range" min="35" max="100" step="1" value="85">
+            </label>
+          </div>
+
+          <div class="field-grid two">
+            <label class="field">
+              <span>Quality Preset</span>
+              <select id="quality-preset">
+                <option value="maximum">Maximum Quality</option>
+                <option value="high">High Quality</option>
+                <option value="balanced" selected>Balanced</option>
+                <option value="small">Small File</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Reduce File Size</span>
+              <select id="target-size-enabled">
+                <option value="off" selected>Off</option>
+                <option value="on">Try to reach target</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="field-grid three">
+            <label class="field">
+              <span>Target Size</span>
+              <input id="target-size-value" type="number" min="1" step="1" value="500">
+            </label>
+            <label class="field">
+              <span>Unit</span>
+              <select id="target-size-unit">
+                <option value="KB" selected>KB</option>
+                <option value="MB">MB</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Padding</span>
+              <select id="padding-mode">
+                <option value="transparent" selected>Transparent</option>
+                <option value="white">White</option>
+                <option value="black">Black</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="field-grid two">
+            <label class="field">
+              <span>Custom BG</span>
+              <input id="background-color" type="color" value="#ffffff">
+            </label>
+            <label class="field checkbox-row">
+              <input id="prevent-enlargement" type="checkbox" checked>
+              <span>Prevent enlargement</span>
+            </label>
+          </div>
+
+          <div class="field-grid two">
+            <label class="field checkbox-row">
+              <input id="maintain-aspect" type="checkbox" checked>
+              <span>Maintain aspect ratio</span>
+            </label>
+            <label class="field checkbox-row">
+              <input id="sanitize-filenames" type="checkbox" checked>
+              <span>Sanitize filenames</span>
+            </label>
+          </div>
+        </section>
+
+        <section class="card section">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">3. Batch Rename</p>
+              <h2>Output Naming</h2>
+            </div>
+          </div>
+          <div class="field-grid two">
+            <label class="field">
+              <span>Rename Mode</span>
+              <select id="rename-mode">
+                <option value="keep">Keep Original</option>
+                <option value="prefix">Prefix</option>
+                <option value="suffix">Suffix</option>
+                <option value="sequential">Sequential</option>
+                <option value="findReplace">Find & Replace</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Zip Name</span>
+              <input id="zip-name" type="text" value="processed-images">
+            </label>
+          </div>
+          <div class="field-grid two">
+            <label class="field">
+              <span>Rename Value A</span>
+              <input id="rename-value-a" type="text" placeholder="prefix / find / pattern">
+            </label>
+            <label class="field">
+              <span>Rename Value B</span>
+              <input id="rename-value-b" type="text" placeholder="replace / suffix">
+            </label>
+          </div>
+          <div class="field-grid two">
+            <label class="field">
+              <span>Start Number</span>
+              <input id="rename-start" type="number" min="1" step="1" value="1">
+            </label>
+            <label class="field">
+              <span>Padding</span>
+              <select id="rename-padding">
+                <option value="1">1</option>
+                <option value="2">01</option>
+                <option value="3" selected>001</option>
+                <option value="4">0001</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="card section">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">4. Processing Controls</p>
+              <h2>Queue</h2>
+            </div>
+          </div>
+          <div class="field-grid two">
+            <label class="field">
+              <span>Concurrency</span>
+              <select id="concurrency-select">
+                <option value="auto" selected>Auto</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="4">4</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Metadata</span>
+              <select id="metadata-mode">
+                <option value="strip" selected>Strip Metadata</option>
+                <option value="keep">Keep Where Possible</option>
+              </select>
+            </label>
+          </div>
+          <div class="queue-actions">
+            <button id="process-btn" type="button">Process All</button>
+            <button id="pause-btn" class="ghost-button" type="button">Pause</button>
+            <button id="resume-btn" class="ghost-button" type="button">Resume</button>
+            <button id="cancel-btn" class="ghost-button" type="button">Cancel</button>
+            <button id="retry-btn" class="ghost-button" type="button">Retry Failed</button>
+          </div>
+          <p class="inline-note">
+            Re-encoding usually strips metadata in browsers, which helps reduce file size and remove GPS/device information.
+          </p>
+        </section>
+      </aside>
+
+      <section class="content">
+        <section class="card section preview-panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">5. Preview</p>
+              <h2>Before / After</h2>
+            </div>
+            <button id="refresh-preview-btn" class="ghost-button" type="button">Refresh Preview</button>
+          </div>
+          <div class="preview-toolbar">
+            <p id="preview-meta" class="inline-note">Select an image to preview the processed result.</p>
+          </div>
+          <div class="preview-grid">
+            <figure class="preview-card">
+              <figcaption>Original</figcaption>
+              <img id="original-preview" alt="Original preview">
+            </figure>
+            <figure class="preview-card">
+              <figcaption>Processed</figcaption>
+              <img id="processed-preview" alt="Processed preview">
+            </figure>
+          </div>
+        </section>
+
+        <section class="card section">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">6. Progress</p>
+              <h2>Batch Status</h2>
+            </div>
+          </div>
+          <div class="progress-block">
+            <div class="progress-bar" aria-hidden="true">
+              <span id="progress-fill"></span>
+            </div>
+            <div class="stats-grid">
+              <div><strong id="stat-total">0</strong><span>Total</span></div>
+              <div><strong id="stat-done">0</strong><span>Done</span></div>
+              <div><strong id="stat-failed">0</strong><span>Failed</span></div>
+              <div><strong id="stat-remaining">0</strong><span>Remaining</span></div>
+            </div>
+          </div>
+          <div class="summary-grid">
+            <div><span>Original total</span><strong id="summary-original">0 B</strong></div>
+            <div><span>Processed total</span><strong id="summary-processed">0 B</strong></div>
+            <div><span>Saved</span><strong id="summary-saved">0 B</strong></div>
+            <div><span>Reduction</span><strong id="summary-reduction">0%</strong></div>
+          </div>
+        </section>
+
+        <section class="card section">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">7. Batch Queue</p>
+              <h2>Files</h2>
+            </div>
+            <button id="download-zip-btn" type="button" disabled>Download ZIP</button>
+          </div>
+          <div class="queue-table-wrap">
+            <table class="queue-table">
+              <thead>
+                <tr>
+                  <th>Preview</th>
+                  <th>Name</th>
+                  <th>Original</th>
+                  <th>Output</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="queue-body">
+                <tr>
+                  <td colspan="6" class="empty-state">
+                    Add a batch of product images to begin.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/pica@9.0.1/dist/pica.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
