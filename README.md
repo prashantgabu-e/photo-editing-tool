@@ -2,6 +2,8 @@
 
 PixelBatch is a fully client-side batch image processing tool for ecommerce and product photography workflows. It runs entirely in the browser, supports GitHub Pages deployment, and keeps images on the user's device.
 
+Live URL: `https://prashantgabu-e.github.io/photo-editing-tool/`
+
 ## Features
 
 - Multi-image upload with drag-and-drop
@@ -74,7 +76,7 @@ Then open `http://localhost:8080`.
 1. Push this repository to GitHub.
 2. In the repository settings, open `Pages`.
 3. Set the source to deploy from the main branch root.
-4. Save and wait for GitHub Pages to publish the site.
+4. Save and wait for GitHub Pages to publish the site at `https://prashantgabu-e.github.io/photo-editing-tool/`.
 
 No backend, build step, secrets, or environment variables are required.
 
