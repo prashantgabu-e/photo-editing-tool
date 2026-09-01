@@ -1,0 +1,23 @@
+{
+  "name": "PixelBatch",
+  "short_name": "PixelBatch",
+  "description": "A calm mobile-first workspace for local browser image batch processing.",
+  "start_url": "./#/",
+  "display": "standalone",
+  "background_color": "#f4f1fb",
+  "theme_color": "#7c3aed",
+  "icons": [
+    {
+      "src": "./icons/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/mask-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

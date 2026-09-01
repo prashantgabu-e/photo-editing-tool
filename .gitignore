@@ -4,3 +4,8 @@ Thumbs.db
 
 # Temp
 *.tmp
+
+# Node / Vite
+node_modules/
+*.tsbuildinfo
+vite.config.js
