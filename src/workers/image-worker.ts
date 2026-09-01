@@ -1,10 +1,7 @@
-import picaFactory from "pica";
 import { computeResizePlan } from "../lib/core/crop";
 import { encodeCanvas } from "../lib/core/encoder";
 import { getExifOrientation } from "../lib/utils";
 import type { Settings } from "../types";
-
-const pica = picaFactory();
 
 self.onmessage = async (event: MessageEvent<{ type: "process"; file: File; settings: Settings }>) => {
   if (event.data.type !== "process") {
@@ -63,12 +60,14 @@ async function processImage(file: File, settings: Settings) {
   }
 
   const resized = new OffscreenCanvas(plan.drawWidth, plan.drawHeight);
-  await pica.resize(croppedCanvas as never, resized as never, {
-    alpha: true,
-    unsharpAmount: 80,
-    unsharpRadius: 0.6,
-    unsharpThreshold: 1,
-  });
+  // Avoid Pica in the worker: Firefox fingerprinting protection blocks its getImageData call.
+  const resizeContext = resized.getContext("2d", { alpha: true });
+  if (!resizeContext) {
+    throw new Error("Canvas context could not be created.");
+  }
+  resizeContext.imageSmoothingEnabled = true;
+  resizeContext.imageSmoothingQuality = "high";
+  resizeContext.drawImage(croppedCanvas, 0, 0, plan.drawWidth, plan.drawHeight);
 
   outputContext.drawImage(resized, plan.destX, plan.destY, plan.drawWidth, plan.drawHeight);
   const blob = await encodeCanvas(output, settings);

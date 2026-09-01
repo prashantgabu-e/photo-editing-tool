@@ -1,6 +1,6 @@
 import type { ProcessedResult, Settings } from "../types";
 
-type ItemLike = { id: string; file: File };
+type ItemLike = { id: string; file: File; processingSettings?: Settings };
 
 type ItemPatch = {
   status?: "waiting" | "processing" | "done" | "failed" | "cancelled";
@@ -55,7 +55,7 @@ export class ProcessingQueue<TItem extends ItemLike> {
         while (this.activeWorkers.size < limit && this.pendingItems.length) {
           const item = this.pendingItems.shift();
           if (item) {
-            this.runItem(item, settings, this.schedule!);
+            this.runItem(item, item.processingSettings || settings, this.schedule!);
           }
         }
 

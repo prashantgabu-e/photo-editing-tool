@@ -76,4 +76,14 @@ export interface QueueItem {
   outputName: string;
   previewProcessedUrl?: string;
   resultPreviewOnly?: ProcessedResult | null;
+  overrides: Partial<Pick<Settings, "cropAnchor" | "focalX" | "focalY">>;
+  processingSettings?: Settings;
+}
+
+export interface BatchHistoryEntry {
+  id: string;
+  createdAt: string;
+  count: number;
+  settings: Settings;
+  zipName: string;
 }

@@ -1,8 +1,9 @@
 import { defaultSettings } from "../config/presets";
-import type { Settings, StoredPreset } from "../types";
+import type { BatchHistoryEntry, Settings, StoredPreset } from "../types";
 
 const SETTINGS_KEY = "pixelbatch-settings-v2";
 const PRESETS_KEY = "pixelbatch-custom-presets-v2";
+const HISTORY_KEY = "pixelbatch-batch-history-v1";
 
 export function loadSettings(): Settings {
   try {
@@ -31,4 +32,16 @@ export function loadCustomPresets(): StoredPreset[] {
 
 export function saveCustomPresets(presets: StoredPreset[]) {
   localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
+}
+
+export function loadBatchHistory(): BatchHistoryEntry[] {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+export function saveBatchHistory(history: BatchHistoryEntry[]) {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
 }
