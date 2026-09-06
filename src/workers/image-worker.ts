@@ -2,6 +2,7 @@ import { computeResizePlan } from "../lib/core/crop";
 import { encodeCanvas } from "../lib/core/encoder";
 import { getExifOrientation } from "../lib/utils";
 import type { Settings } from "../types";
+import { removeWatermarkFromImageDataSync } from "@pilio/gemini-watermark-remover/image-data";
 
 self.onmessage = async (event: MessageEvent<{ type: "process"; file: File; settings: Settings }>) => {
   if (event.data.type !== "process") {
@@ -30,6 +31,7 @@ async function processImage(file: File, settings: Settings) {
   applyOrientationTransform(normalizedContext, orientation, normalizedCanvas.width, normalizedCanvas.height);
   normalizedContext.drawImage(bitmap, 0, 0);
   bitmap.close();
+  removeGeminiWatermark(normalizedCanvas, normalizedContext, settings);
 
   const plan = computeResizePlan(normalizedCanvas.width, normalizedCanvas.height, settings);
   const croppedCanvas = new OffscreenCanvas(plan.sourceWidth, plan.sourceHeight);
@@ -80,6 +82,22 @@ async function processImage(file: File, settings: Settings) {
   };
 }
 
+function removeGeminiWatermark(
+  canvas: OffscreenCanvas,
+  ctx: OffscreenCanvasRenderingContext2D,
+  settings: Settings,
+) {
+  if (settings.geminiWatermarkRemoval !== "on") {
+    return null;
+  }
+
+  const result = removeWatermarkFromImageDataSync(ctx.getImageData(0, 0, canvas.width, canvas.height), {
+    adaptiveMode: "auto",
+  });
+  ctx.putImageData(result.imageData as ImageData, 0, 0);
+  return result.meta;
+}
+
 function fillBackground(ctx: OffscreenCanvasRenderingContext2D, width: number, height: number, settings: Settings) {
   const color = resolveBackgroundColor(settings);
   if (!color) {
@@ -103,6 +121,9 @@ function collectWarnings(file: File, blob: Blob, settings: Settings) {
   const warnings: string[] = [];
   if (settings.metadataMode === "keep") {
     warnings.push("Most browsers strip metadata during canvas export.");
+  }
+  if (settings.geminiWatermarkRemoval === "on") {
+    warnings.push("Gemini watermark removal is best-effort and only targets visible Gemini marks.");
   }
   if (file.size > 50 * 1024 * 1024 || file.size === 0) {
     warnings.push("Large files can increase processing time.");

@@ -45,6 +45,7 @@ export interface Settings {
   zipName: string;
   concurrency: ConcurrencyMode;
   metadataMode: MetadataMode;
+  geminiWatermarkRemoval: ToggleMode;
 }
 
 export interface StoredPreset {

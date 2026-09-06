@@ -3,12 +3,14 @@ import { encodeCanvas } from "./encoder";
 import { highQualityResize } from "./resize";
 import { getExifOrientation } from "../utils";
 import type { ProcessedResult, Settings } from "../../types";
+import { removeWatermarkFromImageDataSync } from "@pilio/gemini-watermark-remover/image-data";
 
 export async function processFile(file: File, settings: Settings): Promise<ProcessedResult> {
   const orientation = await getExifOrientation(file);
   const bitmap = await createImageBitmap(file);
   const normalizedCanvas = drawOrientedBitmap(bitmap, orientation);
   bitmap.close();
+  removeGeminiWatermark(normalizedCanvas, settings);
 
   const plan = computeResizePlan(normalizedCanvas.width, normalizedCanvas.height, settings);
   const croppedCanvas = drawSourceCrop(normalizedCanvas, plan);
@@ -28,6 +30,23 @@ export async function processFile(file: File, settings: Settings): Promise<Proce
   };
   disposeCanvas(resizedCanvas);
   return output;
+}
+
+function removeGeminiWatermark(canvas: HTMLCanvasElement, settings: Settings) {
+  if (settings.geminiWatermarkRemoval !== "on") {
+    return null;
+  }
+
+  const ctx = canvas.getContext("2d", { alpha: true });
+  if (!ctx) {
+    throw new Error("Canvas context could not be created.");
+  }
+
+  const result = removeWatermarkFromImageDataSync(ctx.getImageData(0, 0, canvas.width, canvas.height), {
+    adaptiveMode: "auto",
+  });
+  ctx.putImageData(result.imageData as ImageData, 0, 0);
+  return result.meta;
 }
 
 function drawOrientedBitmap(bitmap: ImageBitmap, orientation: number) {
@@ -114,6 +133,9 @@ function collectWarnings(file: File, blob: Blob, settings: Settings) {
   const warnings: string[] = [];
   if (settings.metadataMode === "keep") {
     warnings.push("Most browsers strip metadata during canvas export.");
+  }
+  if (settings.geminiWatermarkRemoval === "on") {
+    warnings.push("Gemini watermark removal is best-effort and only targets visible Gemini marks.");
   }
   if (file.size > 50 * 1024 * 1024 || file.size === 0) {
     warnings.push("Large files can increase processing time.");

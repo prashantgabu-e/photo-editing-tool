@@ -33,6 +33,7 @@ export const defaultSettings: Settings = {
   zipName: "processed-images",
   concurrency: "auto",
   metadataMode: "strip",
+  geminiWatermarkRemoval: "off",
 };
 
 export const qualityPresets = {
