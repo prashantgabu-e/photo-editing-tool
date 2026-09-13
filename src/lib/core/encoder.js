@@ -1,11 +1,16 @@
 import { clamp } from "../utils";
 
-export async function encodeCanvas(canvas, settings) {
+export async function encodeCanvas(canvas, settings, sourceMimeType = "image/png") {
   const targetBytes = getTargetSizeBytes(settings);
-  const mimeType = settings.format;
+  const shouldCompress = settings.targetSizeEnabled === "on";
+  const mimeType = !settings.formatEnabled && !shouldCompress
+    ? resolveOriginalMimeType(sourceMimeType)
+    : settings.format === "original"
+      ? "image/webp"
+      : settings.format;
   const quality = clamp(Number(settings.quality || 85) / 100, 0.35, 1);
 
-  if (mimeType === "image/png" || settings.targetSizeEnabled !== "on") {
+  if (mimeType === "image/png" || !shouldCompress) {
     return canvasToBlob(canvas, mimeType, mimeType === "image/png" ? undefined : quality);
   }
 
@@ -20,6 +25,10 @@ export async function encodeCanvas(canvas, settings) {
   }
 
   return blob;
+}
+
+function resolveOriginalMimeType(mimeType) {
+  return ["image/jpeg", "image/png", "image/webp"].includes(mimeType) ? mimeType : "image/png";
 }
 
 async function canvasToBlob(canvas, mimeType, quality) {

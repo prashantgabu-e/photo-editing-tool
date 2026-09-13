@@ -1,9 +1,9 @@
 export type ThemeMode = "system" | "light" | "dark";
-export type ResizeMode = "exact" | "width" | "height" | "max" | "percentage";
+export type ResizeMode = "original" | "exact" | "width" | "height" | "max" | "percentage";
 export type AspectRatio = "original" | "1:1" | "2:3" | "3:2" | "3:4" | "4:3" | "4:5" | "5:4" | "9:16" | "16:9" | "custom";
 export type CropMode = "cover" | "contain" | "fill" | "fit" | "exact";
 export type CropAnchor = "center" | "top" | "bottom" | "left" | "right" | "focal";
-export type OutputFormat = "image/webp" | "image/png" | "image/jpeg";
+export type OutputFormat = "original" | "image/webp" | "image/png" | "image/jpeg";
 export type QualityPreset = "maximum" | "high" | "balanced" | "small" | "custom";
 export type ToggleMode = "off" | "on";
 export type PaddingMode = "transparent" | "white" | "black" | "custom";
@@ -11,14 +11,17 @@ export type RenameMode = "keep" | "prefix" | "suffix" | "sequential" | "findRepl
 export type ConcurrencyMode = "auto" | "1" | "2" | "4";
 export type MetadataMode = "strip" | "keep";
 export type QueueStatus = "waiting" | "processing" | "done" | "failed" | "cancelled";
+export type MediaType = "image" | "video";
 
 export interface Settings {
   theme: ThemeMode;
   presetId: string;
+  resizeEnabled: boolean;
   resizeMode: ResizeMode;
   width: number;
   height: number;
   scale: number;
+  cropEnabled: boolean;
   aspectRatio: AspectRatio;
   customRatioWidth: number;
   customRatioHeight: number;
@@ -27,15 +30,20 @@ export interface Settings {
   focalX: number;
   focalY: number;
   format: OutputFormat;
+  formatEnabled: boolean;
   quality: number;
   qualityPreset: QualityPreset;
+  compressEnabled: boolean;
   targetSizeEnabled: ToggleMode;
   targetSizeValue: number;
   targetSizeUnit: "KB" | "MB";
+  borderEnabled: boolean;
+  borderSize: number;
   paddingMode: PaddingMode;
   backgroundColor: string;
   preventEnlargement: boolean;
   maintainAspect: boolean;
+  renameEnabled: boolean;
   renameMode: RenameMode;
   renameValueA: string;
   renameValueB: string;
@@ -44,6 +52,7 @@ export interface Settings {
   sanitizeFilenames: boolean;
   zipName: string;
   concurrency: ConcurrencyMode;
+  metadataEnabled: boolean;
   metadataMode: MetadataMode;
   geminiWatermarkRemoval: ToggleMode;
 }
@@ -67,12 +76,14 @@ export interface QueueItem {
   id: string;
   file: File;
   mime: string;
+  mediaType: MediaType;
   width: number;
   height: number;
   previewUrl: string;
   status: QueueStatus;
   error: string;
   warnings: string[];
+  progressText?: string;
   result: ProcessedResult | null;
   outputName: string;
   previewProcessedUrl?: string;

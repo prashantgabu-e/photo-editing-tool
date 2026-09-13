@@ -72,12 +72,13 @@ async function processImage(file: File, settings: Settings) {
   resizeContext.drawImage(croppedCanvas, 0, 0, plan.drawWidth, plan.drawHeight);
 
   outputContext.drawImage(resized, plan.destX, plan.destY, plan.drawWidth, plan.drawHeight);
-  const blob = await encodeCanvas(output, settings);
+  const paddedOutput = applyBorderPadding(output, settings);
+  const blob = await encodeCanvas(paddedOutput, settings, file.type);
 
   return {
     blob,
-    width: output.width,
-    height: output.height,
+    width: paddedOutput.width,
+    height: paddedOutput.height,
     warnings: collectWarnings(file, blob, settings),
   };
 }
@@ -107,6 +108,22 @@ function fillBackground(ctx: OffscreenCanvasRenderingContext2D, width: number, h
   ctx.fillStyle = color;
   ctx.fillRect(0, 0, width, height);
   ctx.restore();
+}
+
+function applyBorderPadding(canvas: OffscreenCanvas, settings: Settings) {
+  const padding = settings.borderEnabled ? Math.max(0, Math.round(Number(settings.borderSize || 0))) : 0;
+  if (!padding) {
+    return canvas;
+  }
+
+  const output = new OffscreenCanvas(canvas.width + padding * 2, canvas.height + padding * 2);
+  const ctx = output.getContext("2d", { alpha: true });
+  if (!ctx) {
+    throw new Error("Canvas context could not be created.");
+  }
+  fillBackground(ctx, output.width, output.height, settings);
+  ctx.drawImage(canvas, padding, padding);
+  return output;
 }
 
 function resolveBackgroundColor(settings: Settings) {

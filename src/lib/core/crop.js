@@ -1,7 +1,43 @@
 import { clamp, parseAspectRatio } from "../utils";
 
 export function computeResizePlan(sourceWidth, sourceHeight, settings) {
+  if (!settings.resizeEnabled && !settings.cropEnabled) {
+    return {
+      targetWidth: sourceWidth,
+      targetHeight: sourceHeight,
+      drawWidth: sourceWidth,
+      drawHeight: sourceHeight,
+      sourceX: 0,
+      sourceY: 0,
+      sourceWidth,
+      sourceHeight,
+      destX: 0,
+      destY: 0,
+      needsPadding: false,
+    };
+  }
+
   const target = getTargetDimensions(sourceWidth, sourceHeight, settings);
+  const anchor = resolveAnchor(settings);
+  if (!settings.cropEnabled) {
+    const scale = Math.min(target.width / sourceWidth, target.height / sourceHeight);
+    const fittedWidth = Math.round(sourceWidth * scale);
+    const fittedHeight = Math.round(sourceHeight * scale);
+    return {
+      targetWidth: target.width,
+      targetHeight: target.height,
+      drawWidth: fittedWidth,
+      drawHeight: fittedHeight,
+      sourceX: 0,
+      sourceY: 0,
+      sourceWidth,
+      sourceHeight,
+      destX: Math.round((target.width - fittedWidth) * anchor.x),
+      destY: Math.round((target.height - fittedHeight) * anchor.y),
+      needsPadding: fittedWidth !== target.width || fittedHeight !== target.height,
+    };
+  }
+
   const ratio = parseAspectRatio(
     settings.aspectRatio,
     settings.customRatioWidth,
@@ -9,7 +45,6 @@ export function computeResizePlan(sourceWidth, sourceHeight, settings) {
     sourceWidth,
     sourceHeight,
   );
-  const anchor = resolveAnchor(settings);
 
   if (settings.preventEnlargement) {
     target.width = Math.min(target.width, sourceWidth);
@@ -117,6 +152,10 @@ function resolveAnchor(settings) {
 }
 
 export function getTargetDimensions(sourceWidth, sourceHeight, settings) {
+  if (!settings.resizeEnabled || settings.resizeMode === "original") {
+    return { width: sourceWidth, height: sourceHeight };
+  }
+
   const width = Number(settings.width || sourceWidth);
   const height = Number(settings.height || sourceHeight);
   const scale = Number(settings.scale || 100) / 100;

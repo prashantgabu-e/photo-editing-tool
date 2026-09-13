@@ -15,6 +15,6 @@ export async function buildZip(items: QueueItem[], zipName: string) {
   const blob = await zip.generateAsync({ type: "blob" });
   return {
     blob,
-    filename: `${(zipName || "processed-images").trim() || "processed-images"}-${buildTodayStamp()}.zip`,
+    filename: `${(zipName || "processed-files").trim() || "processed-files"}-${buildTodayStamp()}.zip`,
   };
 }

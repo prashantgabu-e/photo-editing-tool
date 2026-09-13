@@ -21,14 +21,18 @@ export async function processFile(file: File, settings: Settings): Promise<Proce
     disposeCanvas(croppedCanvas);
   }
 
-  const blob = await encodeCanvas(resizedCanvas, settings);
+  const paddedCanvas = applyBorderPadding(resizedCanvas, settings);
+  if (resizedCanvas !== paddedCanvas) {
+    disposeCanvas(resizedCanvas);
+  }
+  const blob = await encodeCanvas(paddedCanvas, settings, file.type);
   const output = {
     blob,
-    width: resizedCanvas.width,
-    height: resizedCanvas.height,
+    width: paddedCanvas.width,
+    height: paddedCanvas.height,
     warnings: collectWarnings(file, blob, settings),
   };
-  disposeCanvas(resizedCanvas);
+  disposeCanvas(paddedCanvas);
   return output;
 }
 
@@ -119,6 +123,24 @@ function fillBackground(ctx: CanvasRenderingContext2D, width: number, height: nu
   ctx.fillStyle = color;
   ctx.fillRect(0, 0, width, height);
   ctx.restore();
+}
+
+function applyBorderPadding(canvas: HTMLCanvasElement, settings: Settings) {
+  const padding = settings.borderEnabled ? Math.max(0, Math.round(Number(settings.borderSize || 0))) : 0;
+  if (!padding) {
+    return canvas;
+  }
+
+  const output = document.createElement("canvas");
+  output.width = canvas.width + padding * 2;
+  output.height = canvas.height + padding * 2;
+  const ctx = output.getContext("2d", { alpha: true });
+  if (!ctx) {
+    throw new Error("Canvas context could not be created.");
+  }
+  fillBackground(ctx, output.width, output.height, settings);
+  ctx.drawImage(canvas, padding, padding);
+  return output;
 }
 
 function resolveBackgroundColor(settings: Settings) {

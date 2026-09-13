@@ -5,6 +5,9 @@ export const MIME_EXTENSION_MAP: Record<string, string> = {
   "image/png": "png",
   "image/webp": "webp",
   "image/avif": "avif",
+  "video/mp4": "mp4",
+  "video/webm": "webm",
+  "video/quicktime": "mov",
 };
 
 export function formatBytes(bytes: number) {
@@ -30,12 +33,16 @@ export function sanitizeFilename(value: string) {
       .replace(/\.[a-z0-9]+$/i, "")
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "") || "image"
+      .replace(/^-|-$/g, "") || "file"
   );
 }
 
 export function getExtensionForMime(mime: string) {
-  return MIME_EXTENSION_MAP[mime] || "bin";
+  return MIME_EXTENSION_MAP[mime] || "png";
+}
+
+export function getSupportedImageMime(mime: string) {
+  return ["image/jpeg", "image/png", "image/webp"].includes(mime) ? mime : "image/png";
 }
 
 export function detectMimeType(file: File) {
@@ -52,8 +59,16 @@ export function detectMimeType(file: File) {
     bmp: "image/bmp",
     gif: "image/gif",
     avif: "image/avif",
+    mp4: "video/mp4",
+    m4v: "video/mp4",
+    webm: "video/webm",
+    mov: "video/quicktime",
   };
   return byExtension[extension || ""] || "application/octet-stream";
+}
+
+export function isVideoMimeType(mime: string) {
+  return mime.toLowerCase().startsWith("video/");
 }
 
 export function parseAspectRatio(

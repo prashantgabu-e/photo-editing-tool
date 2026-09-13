@@ -1,7 +1,7 @@
 import { defaultSettings } from "../config/presets";
 import type { BatchHistoryEntry, Settings, StoredPreset } from "../types";
 
-const SETTINGS_KEY = "pixelbatch-settings-v2";
+const SETTINGS_KEY = "pixelbatch-settings-v5";
 const PRESETS_KEY = "pixelbatch-custom-presets-v2";
 const HISTORY_KEY = "pixelbatch-batch-history-v1";
 

@@ -1,11 +1,17 @@
-import { getExtensionForMime, sanitizeFilename } from "../utils";
+import { getExtensionForMime, getSupportedImageMime, sanitizeFilename } from "../utils";
 import type { QueueItem, Settings } from "../../types";
 
 export function buildOutputFilename(item: QueueItem, settings: Settings, index: number) {
-  const extension = getExtensionForMime(settings.format);
+  const shouldCompress = settings.targetSizeEnabled === "on";
+  const imageMime = !settings.formatEnabled && !shouldCompress
+    ? getSupportedImageMime(item.mime)
+    : settings.format === "original"
+      ? "image/webp"
+      : settings.format;
+  const extension = item.mediaType === "video" ? "mp4" : getExtensionForMime(imageMime);
   const originalName = item.file.name.replace(/\.[a-z0-9]+$/i, "");
   const safeBase = settings.sanitizeFilenames ? sanitizeFilename(originalName) : originalName;
-  const mode = settings.renameMode;
+  const mode = settings.renameEnabled ? settings.renameMode : "keep";
 
   let baseName = safeBase;
   if (mode === "prefix") {
@@ -23,5 +29,5 @@ export function buildOutputFilename(item: QueueItem, settings: Settings, index: 
   }
 
   const normalized = settings.sanitizeFilenames ? sanitizeFilename(baseName) : baseName.trim();
-  return `${normalized || "image"}.${extension}`;
+  return `${normalized || item.mediaType}.${extension}`;
 }
