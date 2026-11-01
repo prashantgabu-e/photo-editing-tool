@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "exiftool:bridge": "node server/exiftool-bridge.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },
