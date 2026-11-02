@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import JSZip from "jszip";
-import { CheckCircle2, Download, FileArchive, FileSearch, FolderOpen, ImagePlus, LoaderCircle, ScanLine, ShieldAlert, Tags, WandSparkles } from "lucide-react";
+import { CheckCircle2, Download, FileArchive, FileSearch, FolderOpen, ImagePlus, LoaderCircle, ScanLine, ShieldAlert, Tags, WandSparkles, X } from "lucide-react";
 import { downloadBlob } from "../lib/download";
 
 type MetadataResult = {
@@ -63,6 +63,13 @@ export function ExifToolWorkspace() {
   function addFiles(list: FileList | null) {
     if (!list) return;
     setFiles(Array.from(list));
+    setRecords([]);
+    setExports([]);
+    setNotice("");
+  }
+
+  function removeFile(index: number) {
+    setFiles((current) => current.filter((_, currentIndex) => currentIndex !== index));
     setRecords([]);
     setExports([]);
     setNotice("");
@@ -151,7 +158,7 @@ export function ExifToolWorkspace() {
       <div className="exiftool-pickers"><button className="picker-card" type="button" onClick={() => filesRef.current?.click()}><ImagePlus size={23} /><strong>Choose images</strong><span>Select one or more image files.</span></button><button className="picker-card" type="button" onClick={() => folderRef.current?.click()}><FolderOpen size={23} /><strong>Choose folder</strong><span>Process every selected file independently.</span></button></div>
       <input ref={filesRef} type="file" accept="image/*,.dng,.cr2,.nef,.arw,.raf,.orf,.rw2,.heic" multiple hidden onChange={(event) => { addFiles(event.target.files); event.target.value = ""; }} />
       <input ref={folderRef} type="file" accept="image/*,.dng,.cr2,.nef,.arw,.raf,.orf,.rw2,.heic" multiple hidden {...({ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>)} onChange={(event) => { addFiles(event.target.files); event.target.value = ""; }} />
-      {files.length ? <div className="exiftool-selection"><Tags size={18} /><strong>{filesLabel}</strong><span>{files.slice(0, 3).map((file) => file.webkitRelativePath || file.name).join(" · ")}{files.length > 3 ? ` · +${files.length - 3} more` : ""}</span></div> : null}
+      {files.length ? <><div className="exiftool-selection"><Tags size={18} /><strong>{filesLabel}</strong><span>Remove any files you do not want to process.</span></div><div className="exiftool-file-list">{files.map((file, index) => <div className="exiftool-file-item" key={`${file.webkitRelativePath || file.name}-${index}`}><span title={file.webkitRelativePath || file.name}>{file.webkitRelativePath || file.name}</span><button className="remove-file-button" type="button" onClick={() => removeFile(index)} aria-label={`Remove ${file.name}`}><X size={15} /></button></div>)}</div></> : null}
     </section>
 
     <section className="step-card exiftool-actions">
