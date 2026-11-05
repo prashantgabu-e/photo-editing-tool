@@ -25,6 +25,7 @@ PixelBatch is a React 19 + TypeScript image workspace for batch resizing, croppi
 - ZIP export for processed results
 - Local settings and custom preset persistence with `localStorage`
 - Light, dark, and system theme support
+- Batch-editor Privacy Clean operation with C2PA / Content Credentials checks
 
 ## Run Locally
 
@@ -63,6 +64,14 @@ If port `4318` is already used, either keep using the bridge already running the
 $env:EXIFTOOL_BRIDGE_PORT = "4319"
 npm run exiftool:bridge
 ```
+
+## Privacy Clean operation
+
+The batch editor's **Privacy clean** operation works on static hosting with no backend. It accepts JPEG, PNG, and WebP files, checks embedded C2PA / Content Credentials in the browser, then makes a new image at the original dimensions without copying EXIF, IPTC, XMP, or embedded credentials.
+
+- PNG output remains lossless.
+- JPEG and WebP use the browser's maximum encoder quality but are still re-encoded, so they can differ slightly from the source.
+- Visible watermarks are pixels and are not removed.
 
 ## Build for GitHub Pages
 

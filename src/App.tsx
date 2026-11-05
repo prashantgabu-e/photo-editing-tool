@@ -10,6 +10,7 @@ import { ProcessingQueue } from "./lib/queue";
 import { loadBatchHistory, loadCustomPresets, loadSettings, saveBatchHistory, saveSettings } from "./lib/storage";
 import { detectMimeType, formatBytes, getAutoConcurrency, isVideoMimeType, revokeUrl } from "./lib/utils";
 import { ExifToolWorkspace } from "./components/ExifToolWorkspace";
+import { inspectContentCredentials } from "./lib/contentCredentials";
 import type { BatchHistoryEntry, QueueItem, Settings, StoredPreset } from "./types";
 
 const supportedMimes = ["image/jpeg", "image/png", "image/webp", "image/bmp", "image/gif", "image/avif"];
@@ -43,6 +44,7 @@ function getImageOutputSummary(settings: Settings) {
 }
 
 function App() {
+  const isLocalRun = typeof window !== "undefined" && ["localhost", "127.0.0.1", "::1", "[::1]"].includes(window.location.hostname);
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [customPresets] = useState<StoredPreset[]>(() => loadCustomPresets());
   const [history, setHistory] = useState<BatchHistoryEntry[]>(() => loadBatchHistory());
@@ -71,6 +73,17 @@ function App() {
       })),
       onProgress: () => setItems((current) => [...current]),
       processorFallback: processFile,
+      decorateResult: async (file, result, itemSettings) => {
+        if (!itemSettings.privacyCleanEnabled) return result;
+        if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+          return { ...result, warnings: [...result.warnings, "Privacy Clean verification supports JPEG, PNG, and WebP only."] };
+        }
+        const [source, output] = await Promise.all([inspectContentCredentials(file), inspectContentCredentials(result.blob)]);
+        return {
+          ...result,
+          warnings: [...result.warnings, `Source: ${source.message}`, `Clean copy: ${output.message}`],
+        };
+      },
     });
     return () => queueRef.current?.terminateAll();
   }, []);
@@ -147,6 +160,11 @@ function App() {
     if (!next.metadataEnabled) {
       next.metadataMode = "strip";
     }
+    if (next.privacyCleanEnabled) {
+      next.metadataEnabled = false;
+      next.metadataMode = "strip";
+      next.quality = 100;
+    }
     if (!next.renameEnabled) {
       next.renameMode = "keep";
     }
@@ -197,7 +215,7 @@ function App() {
   function restoreHistory(entry: BatchHistoryEntry) { setSettings(entry.settings); setStep(0); }
   const canAdvance = step === 0 ? items.length > 0 : step === 1 ? selectedIds.length > 0 : step === 2 ? selectedIds.length > 0 : false;
 
-  return <div className={`app-shell${workspace === "exiftool" ? " exiftool-shell" : ""}`}><header className="topbar"><div><p className="eyebrow">Private browser processing</p><h1>PixelBatch</h1></div><div className="topbar-actions"><nav className="workspace-switcher" aria-label="Workspace"><button className={workspace === "batch" ? "is-active" : ""} type="button" onClick={() => setWorkspace("batch")}>Batch editor</button><button className={workspace === "exiftool" ? "is-active" : ""} type="button" onClick={() => setWorkspace("exiftool")}>ExifTool</button></nav>{workspace === "batch" ? <button className="ghost-button" type="button" onClick={startNewBatch}><RotateCcw size={17} />New batch</button> : null}</div></header>{workspace === "batch" ? <><main className="workflow"><ol className="stepper" aria-label="Batch workflow">{steps.map((label, index) => <li key={label} className={index === step ? "is-current" : index < step ? "is-complete" : ""}><button type="button" onClick={() => (index <= step || (index === 1 && items.length) || (index === 2 && selectedIds.length)) && setStep(index)}><span>{index < step ? <Check size={15} /> : index + 1}</span>{label}</button></li>)}</ol>{step === 0 && <AddStep items={items} stats={stats} fileRef={filesRef} folderRef={folderRef} addFiles={addFiles} onContinue={() => setStep(1)} history={history} restoreHistory={restoreHistory} />}{step === 1 && <ReviewStep items={items} selectedIds={selectedIds} activeId={activeItem?.id || null} toggleItem={toggleItem} setSelectedIds={setSelectedIds} setActiveId={setActiveId} removeItem={removeItem} onContinue={() => setStep(2)} />}{step === 2 && <EditStep settings={settings} presets={presets} activeItem={activeItem} selectedItems={selectedItems} selectedCount={selectedIds.length} estimate={estimate} updateSettings={updateSettings} applyPreset={applyPreset} refreshPreview={refreshPreview} previewing={previewing} updateOverride={updateOverride} onProcess={processAll} />}{step === 3 && <ExportStep items={selectedItems} stats={selectedStats} processing={processing} downloadZip={downloadZip} retryFailed={retryFailed} startNewBatch={startNewBatch} downloadSingle={(item) => item.result && downloadBlob(item.result.blob, item.outputName)} />}</main><footer className="workflow-footer"><button className="ghost-button" type="button" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0}><ChevronLeft size={18} />Back</button>{step < 3 ? <button className="primary-button" type="button" disabled={!canAdvance || (step === 2 && processing)} onClick={() => step === 2 ? void processAll() : setStep((current) => current + 1)}>{step === 2 ? <><Play size={18} />Process selected</> : <>Continue<ChevronRight size={18} /></>}</button> : null}</footer></> : <ExifToolWorkspace />}</div>;
+  return <div className={`app-shell${workspace === "exiftool" ? " exiftool-shell" : ""}`}><header className="topbar"><div><p className="eyebrow">Private browser processing</p><h1>PixelBatch</h1></div><div className="topbar-actions"><nav className="workspace-switcher" aria-label="Workspace"><button className={workspace === "batch" ? "is-active" : ""} type="button" onClick={() => setWorkspace("batch")}>Batch editor</button>{isLocalRun ? <button className={workspace === "exiftool" ? "is-active" : ""} type="button" onClick={() => setWorkspace("exiftool")}>ExifTool</button> : null}</nav>{workspace === "batch" ? <button className="ghost-button" type="button" onClick={startNewBatch}><RotateCcw size={17} />New batch</button> : null}</div></header>{workspace === "batch" ? <><main className="workflow"><ol className="stepper" aria-label="Batch workflow">{steps.map((label, index) => <li key={label} className={index === step ? "is-current" : index < step ? "is-complete" : ""}><button type="button" onClick={() => (index <= step || (index === 1 && items.length) || (index === 2 && selectedIds.length)) && setStep(index)}><span>{index < step ? <Check size={15} /> : index + 1}</span>{label}</button></li>)}</ol>{step === 0 && <AddStep items={items} stats={stats} fileRef={filesRef} folderRef={folderRef} addFiles={addFiles} onContinue={() => setStep(1)} history={history} restoreHistory={restoreHistory} />}{step === 1 && <ReviewStep items={items} selectedIds={selectedIds} activeId={activeItem?.id || null} toggleItem={toggleItem} setSelectedIds={setSelectedIds} setActiveId={setActiveId} removeItem={removeItem} onContinue={() => setStep(2)} />}{step === 2 && <EditStep settings={settings} presets={presets} activeItem={activeItem} selectedItems={selectedItems} selectedCount={selectedIds.length} estimate={estimate} updateSettings={updateSettings} applyPreset={applyPreset} refreshPreview={refreshPreview} previewing={previewing} updateOverride={updateOverride} onProcess={processAll} />}{step === 3 && <ExportStep items={selectedItems} stats={selectedStats} processing={processing} downloadZip={downloadZip} retryFailed={retryFailed} startNewBatch={startNewBatch} downloadSingle={(item) => item.result && downloadBlob(item.result.blob, item.outputName)} />}</main><footer className="workflow-footer"><button className="ghost-button" type="button" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0}><ChevronLeft size={18} />Back</button>{step < 3 ? <button className="primary-button" type="button" disabled={!canAdvance || (step === 2 && processing)} onClick={() => step === 2 ? void processAll() : setStep((current) => current + 1)}>{step === 2 ? <><Play size={18} />Process selected</> : <>Continue<ChevronRight size={18} /></>}</button> : null}</footer></> : isLocalRun ? <ExifToolWorkspace /> : null}</div>;
 }
 
 function AddStep({ items, stats, fileRef, folderRef, addFiles, onContinue, history, restoreHistory }: { items: QueueItem[]; stats: { totalSize: number }; fileRef: React.RefObject<HTMLInputElement | null>; folderRef: React.RefObject<HTMLInputElement | null>; addFiles: (files: FileList | null) => Promise<void>; onContinue: () => void; history: BatchHistoryEntry[]; restoreHistory: (entry: BatchHistoryEntry) => void; }) {
@@ -256,6 +274,9 @@ function EditStep({ settings, presets, activeItem, selectedItems, selectedCount,
             <Field label="Metadata"><select disabled={!settings.metadataEnabled} value={settings.metadataMode} onChange={(event) => updateSettings("metadataMode", event.target.value as Settings["metadataMode"])}><option value="strip">Strip metadata</option><option value="keep">Keep where possible</option></select></Field>
           </div>
         </OperationRow>
+        <OperationRow title="Privacy clean" enabled={settings.privacyCleanEnabled} onToggle={(enabled) => updateSettings("privacyCleanEnabled", enabled)} summary={settings.privacyCleanEnabled ? "High-quality clean copies + Content Credentials check" : "Off"} help="Creates a fresh browser-encoded copy at maximum quality, without copying EXIF, IPTC, XMP, or embedded Content Credentials. JPEG, PNG, and WebP only.">
+          <p className="operation-note">The result list reports C2PA / Content Credentials checks for the source and output. PNG stays lossless; JPEG and WebP are re-encoded at maximum browser quality. Visible watermarks are not changed.</p>
+        </OperationRow>
         <OperationRow title="Border / padding" enabled={settings.borderEnabled} onToggle={(enabled) => updateSettings("borderEnabled", enabled)} summary={settings.borderEnabled ? `${settings.borderSize}px ${settings.paddingMode}` : "No border"} help="Adds an even margin around the finished image. Useful for marketplace product photos that need breathing room.">
           <div className="control-grid">
             <Field label="Padding"><input disabled={!settings.borderEnabled} type="number" min={0} value={settings.borderSize} onChange={(event) => updateSettings("borderSize", Number(event.target.value))} /></Field>
@@ -284,7 +305,9 @@ function EditStep({ settings, presets, activeItem, selectedItems, selectedCount,
   </section>;
 }
 
-function ExportStep({ items, stats, processing, downloadZip, retryFailed, startNewBatch, downloadSingle }: { items: QueueItem[]; stats: { done: number; failed: number; processedSize: number }; processing: boolean; downloadZip: () => Promise<void>; retryFailed: () => void; startNewBatch: () => void; downloadSingle: (item: QueueItem) => void; }) { return <section className="step-card export-step"><span className="badge">Step 4 of 4</span><h2>{processing ? "Processing your batch..." : "Your batch is ready."}</h2><p>{stats.done} complete · {stats.failed} failed · {formatBytes(stats.processedSize)} processed</p><div className="export-actions"><button className="primary-button" disabled={!stats.done} onClick={() => void downloadZip()}><FileArchive size={18} />Download ZIP</button>{stats.failed ? <button className="ghost-button" onClick={retryFailed}>Retry failed</button> : null}<button className="ghost-button" onClick={startNewBatch}><Plus size={18} />New batch</button></div><div className="result-list">{items.map((item) => <article key={item.id} className="result-row">{item.mediaType === "video" ? <video src={item.result?.downloadUrl || item.previewUrl} muted preload="metadata" /> : <img src={item.result?.downloadUrl || item.previewUrl} alt="" />}<div><strong>{item.outputName || item.file.name}</strong><span>{item.status === "done" ? `${formatBytes(item.result?.blob.size || 0)} · ready` : item.status === "failed" ? item.error : item.progressText || item.status}</span></div>{item.result ? <button className="ghost-button" onClick={() => downloadSingle(item)}><Download size={17} />Download</button> : null}</article>)}</div></section>; }
+function ExportStep({ items, stats, processing, downloadZip, retryFailed, startNewBatch, downloadSingle }: { items: QueueItem[]; stats: { done: number; failed: number; processedSize: number }; processing: boolean; downloadZip: () => Promise<void>; retryFailed: () => void; startNewBatch: () => void; downloadSingle: (item: QueueItem) => void; }) {
+  return <section className="step-card export-step"><span className="badge">Step 4 of 4</span><h2>{processing ? "Processing your batch..." : "Your batch is ready."}</h2><p>{stats.done} complete · {stats.failed} failed · {formatBytes(stats.processedSize)} processed</p><div className="export-actions"><button className="primary-button" disabled={!stats.done} onClick={() => void downloadZip()}><FileArchive size={18} />Download ZIP</button>{stats.failed ? <button className="ghost-button" onClick={retryFailed}>Retry failed</button> : null}<button className="ghost-button" onClick={startNewBatch}><Plus size={18} />New batch</button></div><div className="result-list">{items.map((item) => <article key={item.id} className="result-row">{item.mediaType === "video" ? <video src={item.result?.downloadUrl || item.previewUrl} muted preload="metadata" /> : <img src={item.result?.downloadUrl || item.previewUrl} alt="" />}<div><strong>{item.outputName || item.file.name}</strong><span>{item.status === "done" ? `${formatBytes(item.result?.blob.size || 0)} · ${item.warnings.length ? item.warnings.join(" ") : "ready"}` : item.status === "failed" ? item.error : item.progressText || item.status}</span></div>{item.result ? <button className="ghost-button" onClick={() => downloadSingle(item)}><Download size={17} />Download</button> : null}</article>)}</div></section>;
+}
 function OperationRow({ title, enabled, summary, help, onToggle, children }: { title: string; enabled: boolean; summary: string; help: string; onToggle: (enabled: boolean) => void; children: React.ReactNode }) { return <section className={`operation-row${enabled ? " is-enabled" : ""}`}><label className="operation-head"><input type="checkbox" checked={enabled} onChange={(event) => onToggle(event.target.checked)} /><span><strong>{title}</strong><small>{summary}</small><p className="operation-help"><Info size={14} />{help}</p></span></label><div className="operation-body">{children}</div></section>; }
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="field"><span>{label}</span>{children}</label>; }
 function Preview({ label, src, mediaType }: { label: string; src?: string; mediaType?: QueueItem["mediaType"] }) { return <figure className="preview-card"><figcaption>{label}</figcaption>{src ? mediaType === "video" ? <video src={src} controls muted preload="metadata" /> : <img src={src} alt={`${label} preview`} /> : <div className="preview-empty">{mediaType === "video" ? "Available after processing" : "Generate a preview"}</div>}</figure>; }

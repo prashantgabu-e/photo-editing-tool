@@ -14,6 +14,7 @@ interface QueueConfig {
   onItemUpdate: (itemId: string, patch: ItemPatch) => void;
   onProgress: () => void;
   processorFallback: (file: File, settings: Settings) => Promise<ProcessedResult>;
+  decorateResult?: (file: File, result: ProcessedResult, settings: Settings) => Promise<ProcessedResult>;
 }
 
 export class ProcessingQueue<TItem extends ItemLike> {
@@ -21,6 +22,7 @@ export class ProcessingQueue<TItem extends ItemLike> {
   private onItemUpdate: QueueConfig["onItemUpdate"];
   private onProgress: QueueConfig["onProgress"];
   private processorFallback: QueueConfig["processorFallback"];
+  private decorateResult?: QueueConfig["decorateResult"];
   private activeWorkers = new Map<string, Worker>();
   private pendingItems: TItem[] = [];
   private paused = false;
@@ -32,6 +34,7 @@ export class ProcessingQueue<TItem extends ItemLike> {
     this.onItemUpdate = config.onItemUpdate;
     this.onProgress = config.onProgress;
     this.processorFallback = config.processorFallback;
+    this.decorateResult = config.decorateResult;
   }
 
   async process(items: TItem[], settings: Settings, concurrency: number) {
@@ -79,13 +82,14 @@ export class ProcessingQueue<TItem extends ItemLike> {
     this.activeWorkers.set(item.id, worker);
     this.onItemUpdate(item.id, { status: "processing", error: "", warnings: [] });
 
-    worker.onmessage = (event: MessageEvent<{ type: "done" | "error"; result?: ProcessedResult; error?: string }>) => {
+    worker.onmessage = async (event: MessageEvent<{ type: "done" | "error"; result?: ProcessedResult; error?: string }>) => {
       if (event.data.type === "done" && event.data.result) {
+        const result = this.decorateResult ? await this.decorateResult(item.file, event.data.result, settings) : event.data.result;
         this.onItemUpdate(item.id, {
           status: "done",
-          result: event.data.result,
+          result,
           error: "",
-          warnings: event.data.result.warnings || [],
+          warnings: result.warnings || [],
         });
       } else {
         this.onItemUpdate(item.id, {
@@ -123,7 +127,8 @@ export class ProcessingQueue<TItem extends ItemLike> {
   private async runFallback(item: TItem, settings: Settings, schedule: () => void) {
     this.onItemUpdate(item.id, { status: "processing", error: "", warnings: [] });
     try {
-      const result = await this.processorFallback(item.file, settings);
+      const processed = await this.processorFallback(item.file, settings);
+      const result = this.decorateResult ? await this.decorateResult(item.file, processed, settings) : processed;
       this.onItemUpdate(item.id, { status: "done", result, error: "", warnings: result.warnings || [] });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Image processing failed.";

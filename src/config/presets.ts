@@ -41,6 +41,7 @@ export const defaultSettings: Settings = {
   concurrency: "auto",
   metadataEnabled: false,
   metadataMode: "strip",
+  privacyCleanEnabled: false,
   geminiWatermarkRemoval: "on",
 };
 

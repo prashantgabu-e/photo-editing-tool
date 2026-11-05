@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@contentauth/c2pa-web": "^0.16.0",
     "@pilio/gemini-watermark-remover": "^1.0.41",
     "jszip": "^3.10.1",
     "lucide-react": "^0.542.0",
