@@ -42,7 +42,7 @@ export const defaultSettings: Settings = {
   metadataEnabled: false,
   metadataMode: "strip",
   privacyCleanEnabled: false,
-  geminiWatermarkRemoval: "on",
+  geminiWatermarkRemoval: "off",
 };
 
 export const qualityPresets = {
