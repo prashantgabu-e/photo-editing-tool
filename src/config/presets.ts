@@ -4,7 +4,7 @@ export const defaultSettings: Settings = {
   theme: "system",
   presetId: "cleanup-only",
   resizeEnabled: false,
-  resizeMode: "original",
+  resizeMode: "exact",
   width: 1024,
   height: 1536,
   scale: 100,
@@ -59,7 +59,7 @@ export const builtInPresets: StoredPreset[] = [
     name: "Cleanup Only",
     builtIn: true,
     settings: {
-      resizeMode: "original",
+      resizeMode: "exact",
       resizeEnabled: false,
       aspectRatio: "original",
       cropEnabled: false,

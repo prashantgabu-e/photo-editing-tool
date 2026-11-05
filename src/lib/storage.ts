@@ -8,7 +8,13 @@ const HISTORY_KEY = "pixelbatch-batch-history-v1";
 export function loadSettings(): Settings {
   try {
     const parsed = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null");
-    return parsed ? { ...defaultSettings, ...parsed } : defaultSettings;
+    if (!parsed) return defaultSettings;
+    const settings = { ...defaultSettings, ...parsed };
+    // "original" was the old inactive Resize choice. Resize is now enabled
+    // only by its checkbox, so migrate saved settings to a usable mode.
+    if (settings.resizeMode === "original") settings.resizeMode = "exact";
+    if (settings.metadataMode === "strip") settings.metadataEnabled = false;
+    return settings;
   } catch {
     return defaultSettings;
   }
