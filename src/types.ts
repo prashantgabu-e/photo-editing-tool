@@ -54,6 +54,7 @@ export interface Settings {
   concurrency: ConcurrencyMode;
   metadataEnabled: boolean;
   metadataMode: MetadataMode;
+  localExifToolStripEnabled: boolean;
   privacyCleanEnabled: boolean;
   geminiWatermarkRemoval: ToggleMode;
 }

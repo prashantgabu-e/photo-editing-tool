@@ -36,6 +36,20 @@ function getFormatLabel(format: Settings["format"]) {
   return format === "original" ? "Original format" : format.replace("image/", "").toUpperCase();
 }
 
+async function stripWithLocalExifTool(blob: Blob, filename: string) {
+  const response = await fetch("http://127.0.0.1:4319/api/exiftool/strip", {
+    method: "POST",
+    headers: { "content-type": "application/octet-stream", "x-file-name": filename },
+    body: blob,
+  });
+  if (!response.ok) {
+    let message = `Local ExifTool bridge failed (${response.status}).`;
+    try { message = ((await response.json()) as { error?: string }).error || message; } catch { /* Keep the status message. */ }
+    throw new Error(message);
+  }
+  return response.blob();
+}
+
 function getImageOutputSummary(settings: Settings) {
   const size = settings.resizeEnabled ? `${settings.width}×${settings.height}` : "original size";
   const format = settings.formatEnabled || settings.compressEnabled ? getFormatLabel(settings.format === "original" ? "image/webp" : settings.format) : "original format";
@@ -74,14 +88,19 @@ function App() {
       onProgress: () => setItems((current) => [...current]),
       processorFallback: processFile,
       decorateResult: async (file, result, itemSettings) => {
-        if (!itemSettings.privacyCleanEnabled) return result;
-        if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-          return { ...result, warnings: [...result.warnings, "Privacy Clean verification supports JPEG, PNG, and WebP only."] };
+        let next = result;
+        if (itemSettings.localExifToolStripEnabled) {
+          const blob = await stripWithLocalExifTool(next.blob, file.name);
+          next = { ...next, blob, warnings: [...next.warnings, "Metadata removed with local ExifTool."] };
         }
-        const [source, output] = await Promise.all([inspectContentCredentials(file), inspectContentCredentials(result.blob)]);
+        if (!itemSettings.privacyCleanEnabled) return next;
+        if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+          return { ...next, warnings: [...next.warnings, "Privacy Clean verification supports JPEG, PNG, and WebP only."] };
+        }
+        const [source, output] = await Promise.all([inspectContentCredentials(file), inspectContentCredentials(next.blob)]);
         return {
-          ...result,
-          warnings: [...result.warnings, `Source: ${source.message}`, `Clean copy: ${output.message}`],
+          ...next,
+          warnings: [...next.warnings, `Source: ${source.message}`, `Clean copy: ${output.message}`],
         };
       },
     });
@@ -215,7 +234,7 @@ function App() {
   function restoreHistory(entry: BatchHistoryEntry) { setSettings(entry.settings); setStep(0); }
   const canAdvance = step === 0 ? items.length > 0 : step === 1 ? selectedIds.length > 0 : step === 2 ? selectedIds.length > 0 : false;
 
-  return <div className={`app-shell${workspace === "exiftool" ? " exiftool-shell" : ""}`}><header className="topbar"><div><p className="eyebrow">Private browser processing</p><h1>PixelBatch</h1></div><div className="topbar-actions"><nav className="workspace-switcher" aria-label="Workspace"><button className={workspace === "batch" ? "is-active" : ""} type="button" onClick={() => setWorkspace("batch")}>Batch editor</button>{isLocalRun ? <button className={workspace === "exiftool" ? "is-active" : ""} type="button" onClick={() => setWorkspace("exiftool")}>ExifTool</button> : null}</nav>{workspace === "batch" ? <button className="ghost-button" type="button" onClick={startNewBatch}><RotateCcw size={17} />New batch</button> : null}</div></header>{workspace === "batch" ? <><main className="workflow"><ol className="stepper" aria-label="Batch workflow">{steps.map((label, index) => <li key={label} className={index === step ? "is-current" : index < step ? "is-complete" : ""}><button type="button" onClick={() => (index <= step || (index === 1 && items.length) || (index === 2 && selectedIds.length)) && setStep(index)}><span>{index < step ? <Check size={15} /> : index + 1}</span>{label}</button></li>)}</ol>{step === 0 && <AddStep items={items} stats={stats} fileRef={filesRef} folderRef={folderRef} addFiles={addFiles} onContinue={() => setStep(1)} history={history} restoreHistory={restoreHistory} />}{step === 1 && <ReviewStep items={items} selectedIds={selectedIds} activeId={activeItem?.id || null} toggleItem={toggleItem} setSelectedIds={setSelectedIds} setActiveId={setActiveId} removeItem={removeItem} onContinue={() => setStep(2)} />}{step === 2 && <EditStep settings={settings} presets={presets} activeItem={activeItem} selectedItems={selectedItems} selectedCount={selectedIds.length} estimate={estimate} updateSettings={updateSettings} applyPreset={applyPreset} refreshPreview={refreshPreview} previewing={previewing} updateOverride={updateOverride} onProcess={processAll} />}{step === 3 && <ExportStep items={selectedItems} stats={selectedStats} processing={processing} downloadZip={downloadZip} retryFailed={retryFailed} startNewBatch={startNewBatch} downloadSingle={(item) => item.result && downloadBlob(item.result.blob, item.outputName)} />}</main><footer className="workflow-footer"><button className="ghost-button" type="button" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0}><ChevronLeft size={18} />Back</button>{step < 3 ? <button className="primary-button" type="button" disabled={!canAdvance || (step === 2 && processing)} onClick={() => step === 2 ? void processAll() : setStep((current) => current + 1)}>{step === 2 ? <><Play size={18} />Process selected</> : <>Continue<ChevronRight size={18} /></>}</button> : null}</footer></> : isLocalRun ? <ExifToolWorkspace /> : null}</div>;
+return <div className={`app-shell${workspace === "exiftool" ? " exiftool-shell" : ""}`}><header className="topbar"><div><p className="eyebrow">Private browser processing</p><h1>PixelBatch</h1></div><div className="topbar-actions"><nav className="workspace-switcher" aria-label="Workspace"><button className={workspace === "batch" ? "is-active" : ""} type="button" onClick={() => setWorkspace("batch")}>Batch editor</button>{isLocalRun ? <button className={workspace === "exiftool" ? "is-active" : ""} type="button" onClick={() => setWorkspace("exiftool")}>Local ExifTool</button> : null}</nav>{workspace === "batch" ? <button className="ghost-button" type="button" onClick={startNewBatch}><RotateCcw size={17} />New batch</button> : null}</div></header>{workspace === "batch" ? <><main className="workflow"><ol className="stepper" aria-label="Batch workflow">{steps.map((label, index) => <li key={label} className={index === step ? "is-current" : index < step ? "is-complete" : ""}><button type="button" onClick={() => (index <= step || (index === 1 && items.length) || (index === 2 && selectedIds.length)) && setStep(index)}><span>{index < step ? <Check size={15} /> : index + 1}</span>{label}</button></li>)}</ol>{step === 0 && <AddStep items={items} stats={stats} fileRef={filesRef} folderRef={folderRef} addFiles={addFiles} onContinue={() => setStep(1)} history={history} restoreHistory={restoreHistory} />}{step === 1 && <ReviewStep items={items} selectedIds={selectedIds} activeId={activeItem?.id || null} toggleItem={toggleItem} setSelectedIds={setSelectedIds} setActiveId={setActiveId} removeItem={removeItem} onContinue={() => setStep(2)} />}{step === 2 && <EditStep settings={settings} presets={presets} activeItem={activeItem} selectedItems={selectedItems} selectedCount={selectedIds.length} estimate={estimate} updateSettings={updateSettings} applyPreset={applyPreset} refreshPreview={refreshPreview} previewing={previewing} updateOverride={updateOverride} onProcess={processAll} />}{step === 3 && <ExportStep items={selectedItems} stats={selectedStats} processing={processing} downloadZip={downloadZip} retryFailed={retryFailed} startNewBatch={startNewBatch} downloadSingle={(item) => item.result && downloadBlob(item.result.blob, item.outputName)} />}</main><footer className="workflow-footer"><button className="ghost-button" type="button" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0}><ChevronLeft size={18} />Back</button>{step < 3 ? <button className="primary-button" type="button" disabled={!canAdvance || (step === 2 && processing)} onClick={() => step === 2 ? void processAll() : setStep((current) => current + 1)}>{step === 2 ? <><Play size={18} />Process selected</> : <>Continue<ChevronRight size={18} /></>}</button> : null}</footer></> : isLocalRun ? <ExifToolWorkspace /> : null}</div>;
 }
 
 function AddStep({ items, stats, fileRef, folderRef, addFiles, onContinue, history, restoreHistory }: { items: QueueItem[]; stats: { totalSize: number }; fileRef: React.RefObject<HTMLInputElement | null>; folderRef: React.RefObject<HTMLInputElement | null>; addFiles: (files: FileList | null) => Promise<void>; onContinue: () => void; history: BatchHistoryEntry[]; restoreHistory: (entry: BatchHistoryEntry) => void; }) {
@@ -227,6 +246,7 @@ function AddStep({ items, stats, fileRef, folderRef, addFiles, onContinue, histo
 function ReviewStep({ items, selectedIds, activeId, toggleItem, setSelectedIds, setActiveId, removeItem, onContinue }: { items: QueueItem[]; selectedIds: string[]; activeId: string | null; toggleItem: (id: string) => void; setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>; setActiveId: (id: string) => void; removeItem: (id: string) => void; onContinue: () => void; }) { const allSelected = items.length > 0 && selectedIds.length === items.length; return <section className="step-card"><div className="section-head"><div><span className="badge">Step 2 of 4</span><h2>Review your selection.</h2><p>Choose the images and videos that should receive the batch settings.</p></div><button className="ghost-button" type="button" onClick={() => setSelectedIds(allSelected ? [] : items.map((item) => item.id))}>{allSelected ? "Deselect all" : "Select all"}</button></div><div className="review-toolbar"><strong>{selectedIds.length} of {items.length} selected</strong><span>Click a thumbnail to inspect it.</span></div><div className="thumbnail-grid">{items.map((item) => <article key={item.id} className={`thumbnail-card${activeId === item.id ? " is-active" : ""}${selectedIds.includes(item.id) ? " is-selected" : ""}`}><button type="button" className="thumbnail-image" onClick={() => setActiveId(item.id)}>{item.mediaType === "video" ? <><video src={item.previewUrl} muted preload="metadata" /><span className="media-type"><Film size={13} />Video</span></> : <img src={item.previewUrl} alt={item.file.name} />}<span className="thumbnail-check" onClick={(event) => { event.stopPropagation(); toggleItem(item.id); }}>{selectedIds.includes(item.id) ? <Check size={15} /> : null}</span></button><div><strong title={item.file.name}>{item.file.name}</strong><span>{item.width && item.height ? `${item.width}×${item.height} · ` : ""}{formatBytes(item.file.size)}</span></div><button className="remove-button" type="button" onClick={() => removeItem(item.id)} aria-label={`Remove ${item.file.name}`}><X size={16} /></button></article>)}</div><div className="inline-actions"><button className="primary-button" type="button" disabled={!selectedIds.length} onClick={onContinue}>Edit selected files <ChevronRight size={18} /></button></div></section>; }
 
 function EditStep({ settings, presets, activeItem, selectedItems, selectedCount, estimate, updateSettings, applyPreset, refreshPreview, previewing, updateOverride, onProcess }: { settings: Settings; presets: StoredPreset[]; activeItem: QueueItem | null; selectedItems: QueueItem[]; selectedCount: number; estimate: number; updateSettings: <K extends keyof Settings>(key: K, value: Settings[K]) => void; applyPreset: (id: string) => void; refreshPreview: () => Promise<void>; previewing: boolean; updateOverride: <K extends "cropAnchor" | "focalX" | "focalY">(key: K, value: Settings[K]) => void; onProcess: () => Promise<void>; }) {
+  const isLocalRun = typeof window !== "undefined" && ["localhost", "127.0.0.1", "::1", "[::1]"].includes(window.location.hostname);
   const activeSettings = activeItem ? { ...settings, ...activeItem.overrides } : settings;
   const activeIsVideo = activeItem?.mediaType === "video";
   const selectedImageCount = selectedItems.filter((item) => item.mediaType === "image").length;
@@ -282,6 +302,7 @@ function EditStep({ settings, presets, activeItem, selectedItems, selectedCount,
           </div>
         </OperationRow>
         <OperationRow title="Keep metadata" enabled={settings.metadataEnabled} onToggle={(enabled) => { updateSettings("metadataEnabled", enabled); updateSettings("metadataMode", enabled ? "keep" : "strip"); }} summary={settings.metadataEnabled ? "Best effort" : "Off"} help="Most browser exports strip metadata. Turn this on only when keeping what the browser can retain matters." />
+        {isLocalRun ? <OperationRow title="Remove metadata with local ExifTool" enabled={settings.localExifToolStripEnabled} onToggle={(enabled) => updateSettings("localExifToolStripEnabled", enabled)} summary={settings.localExifToolStripEnabled ? "Uses installed ExifTool" : "Off"} help="Sends each finished image to your local ExifTool bridge with -all=. Start it with npm run exiftool:bridge before processing." /> : null}
         <OperationRow title="Privacy clean" enabled={settings.privacyCleanEnabled} onToggle={(enabled) => updateSettings("privacyCleanEnabled", enabled)} summary={settings.privacyCleanEnabled ? "High-quality clean copy" : "Off"} help="Creates a fresh browser-encoded copy and checks C2PA Content Credentials. JPEG, PNG, and WebP only." />
         <OperationRow title="Border / padding" enabled={settings.borderEnabled} onToggle={(enabled) => updateSettings("borderEnabled", enabled)} summary={settings.borderEnabled ? `${settings.borderSize}px ${settings.paddingMode}` : "No border"} help="Adds an even margin around the finished image. Useful for marketplace product photos that need breathing room.">
           <div className="control-grid">

@@ -12,7 +12,7 @@ type MetadataResult = {
 type BridgeStatus = { state: "checking" | "ready" | "offline"; version?: string; message?: string };
 type ExportResult = { filename: string; zipPath: string; blob: Blob };
 
-const defaultBridgeUrl = "http://127.0.0.1:4318";
+const defaultBridgeUrl = "http://127.0.0.1:4319";
 
 function endpoint(baseUrl: string, path: string) {
   return `${baseUrl.replace(/\/$/, "")}${path}`;

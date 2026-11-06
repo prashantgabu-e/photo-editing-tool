@@ -84,13 +84,21 @@ export class ProcessingQueue<TItem extends ItemLike> {
 
     worker.onmessage = async (event: MessageEvent<{ type: "done" | "error"; result?: ProcessedResult; error?: string }>) => {
       if (event.data.type === "done" && event.data.result) {
-        const result = this.decorateResult ? await this.decorateResult(item.file, event.data.result, settings) : event.data.result;
-        this.onItemUpdate(item.id, {
-          status: "done",
-          result,
-          error: "",
-          warnings: result.warnings || [],
-        });
+        try {
+          const result = this.decorateResult ? await this.decorateResult(item.file, event.data.result, settings) : event.data.result;
+          this.onItemUpdate(item.id, {
+            status: "done",
+            result,
+            error: "",
+            warnings: result.warnings || [],
+          });
+        } catch (error) {
+          this.onItemUpdate(item.id, {
+            status: "failed",
+            error: error instanceof Error ? error.message : "Image processing failed.",
+            warnings: [],
+          });
+        }
       } else {
         this.onItemUpdate(item.id, {
           status: "failed",
