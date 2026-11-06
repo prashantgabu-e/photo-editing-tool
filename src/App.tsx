@@ -89,19 +89,21 @@ function App() {
       processorFallback: processFile,
       decorateResult: async (file, result, itemSettings) => {
         let next = result;
+        if (itemSettings.privacyCleanEnabled) {
+          if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+            next = { ...next, warnings: [...next.warnings, "Privacy Clean verification supports JPEG, PNG, and WebP only."] };
+          } else {
+            const [source, output] = await Promise.all([inspectContentCredentials(file), inspectContentCredentials(next.blob)]);
+            next = { ...next, warnings: [...next.warnings, `Source: ${source.message}`, `Clean copy: ${output.message}`] };
+          }
+        }
+        // ExifTool is deliberately last: it receives the fully edited export
+        // and its returned blob is the exact file downloaded by the user.
         if (itemSettings.localExifToolStripEnabled) {
           const blob = await stripWithLocalExifTool(next.blob, file.name);
           next = { ...next, blob, warnings: [...next.warnings, "Metadata removed with local ExifTool."] };
         }
-        if (!itemSettings.privacyCleanEnabled) return next;
-        if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-          return { ...next, warnings: [...next.warnings, "Privacy Clean verification supports JPEG, PNG, and WebP only."] };
-        }
-        const [source, output] = await Promise.all([inspectContentCredentials(file), inspectContentCredentials(next.blob)]);
-        return {
-          ...next,
-          warnings: [...next.warnings, `Source: ${source.message}`, `Clean copy: ${output.message}`],
-        };
+        return next;
       },
     });
     return () => queueRef.current?.terminateAll();
@@ -302,7 +304,6 @@ function EditStep({ settings, presets, activeItem, selectedItems, selectedCount,
           </div>
         </OperationRow>
         <OperationRow title="Keep metadata" enabled={settings.metadataEnabled} onToggle={(enabled) => { updateSettings("metadataEnabled", enabled); updateSettings("metadataMode", enabled ? "keep" : "strip"); }} summary={settings.metadataEnabled ? "Best effort" : "Off"} help="Most browser exports strip metadata. Turn this on only when keeping what the browser can retain matters." />
-        {isLocalRun ? <OperationRow title="Remove metadata with local ExifTool" enabled={settings.localExifToolStripEnabled} onToggle={(enabled) => updateSettings("localExifToolStripEnabled", enabled)} summary={settings.localExifToolStripEnabled ? "Uses installed ExifTool" : "Off"} help="Sends each finished image to your local ExifTool bridge with -all=. Start it with npm run exiftool:bridge before processing." /> : null}
         <OperationRow title="Privacy clean" enabled={settings.privacyCleanEnabled} onToggle={(enabled) => updateSettings("privacyCleanEnabled", enabled)} summary={settings.privacyCleanEnabled ? "High-quality clean copy" : "Off"} help="Creates a fresh browser-encoded copy and checks C2PA Content Credentials. JPEG, PNG, and WebP only." />
         <OperationRow title="Border / padding" enabled={settings.borderEnabled} onToggle={(enabled) => updateSettings("borderEnabled", enabled)} summary={settings.borderEnabled ? `${settings.borderSize}px ${settings.paddingMode}` : "No border"} help="Adds an even margin around the finished image. Useful for marketplace product photos that need breathing room.">
           <div className="control-grid">
@@ -321,6 +322,7 @@ function EditStep({ settings, presets, activeItem, selectedItems, selectedCount,
             {renameUsesSequence ? <Field label="Zero padding"><input disabled={!settings.renameEnabled} type="number" min={1} max={10} value={settings.renamePadding} onChange={(event) => updateSettings("renamePadding", Number(event.target.value))} /></Field> : null}
           </div>
         </OperationRow>
+        {isLocalRun ? <OperationRow title="Remove metadata with local ExifTool" enabled={settings.localExifToolStripEnabled} onToggle={(enabled) => updateSettings("localExifToolStripEnabled", enabled)} summary={settings.localExifToolStripEnabled ? "Final export step" : "Off"} help="Runs after every other image operation, immediately before download. Start the local bridge with npm run exiftool:bridge." /> : null}
         <div className="operation-row always-on"><div className="control-grid"><Field label="ZIP name"><input value={settings.zipName} onChange={(event) => updateSettings("zipName", event.target.value)} /></Field></div></div>
       </div>
     </div>
