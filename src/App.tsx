@@ -17,6 +17,10 @@ const supportedMimes = ["image/jpeg", "image/png", "image/webp", "image/bmp", "i
 const supportedVideoMimes = ["video/mp4", "video/webm", "video/quicktime"];
 const steps = ["Add files", "Review", "Edit & preview", "Export"];
 
+function ShopifyIcon() {
+  return <svg className="shopify-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.2 7.3 8.8 4.5c.5-.9 1.5-1.4 2.5-1.4h1.4c1 0 2 .5 2.5 1.4l1.6 2.8 2.4.7-1.4 12.4H6.2L4.8 8l2.4-.7Z" /><path d="M14.8 9.4c-.6-.5-1.4-.8-2.3-.8-1.2 0-2.1.6-2.1 1.5 0 2.1 4.7 1.1 4.7 4.1 0 1.7-1.3 2.7-3.3 2.7-1 0-2-.3-2.8-.9l.6-1.5c.7.6 1.5.9 2.3.9.8 0 1.3-.3 1.3-.9 0-2.1-4.7-1.1-4.7-4 0-1.7 1.4-2.7 3.4-2.7 1 0 1.9.3 2.5.7l-.6 1.4Z" /></svg>;
+}
+
 function readVideoMetadata(src: string) {
   return new Promise<{ width: number; height: number }>((resolve, reject) => {
     const video = document.createElement("video");
@@ -268,7 +272,7 @@ function EditStep({ settings, presets, activeItem, selectedItems, selectedCount,
       <span className="badge">Step 3 of 4</span>
       <h2>Set the batch output.</h2>
       <p>{isVideoOnly ? "Rename and watermark cleanup are available." : "Choose only the operations you need."}</p>
-      {!isVideoOnly ? <div className="preset-chips">{presets.filter((preset) => preset.id !== "custom-current").map((preset) => <button key={preset.id} type="button" className={settings.presetId === preset.id ? "is-active" : ""} onClick={() => applyPreset(preset.id)}>{preset.name}</button>)}</div> : null}
+      {!isVideoOnly ? <div className="preset-section"><p className="preset-label">Quick shortcuts</p><div className="preset-chips">{presets.filter((preset) => preset.id === "shopify").map((preset) => <button key={preset.id} type="button" className={`${settings.presetId === preset.id ? "is-active" : ""} shopify-shortcut`} onClick={() => applyPreset(preset.id)}><ShopifyIcon />{preset.name}</button>)}</div></div> : null}
       <div className="operation-list">
         <OperationRow title="Gemini watermark removal" enabled={settings.geminiWatermarkRemoval === "on"} onToggle={(enabled) => updateSettings("geminiWatermarkRemoval", enabled ? "on" : "off")} />
         {!isVideoOnly ? <>
@@ -329,7 +333,7 @@ function EditStep({ settings, presets, activeItem, selectedItems, selectedCount,
     <aside className="preview-panel">
       <div className="preview-heading"><div><p className="eyebrow">Preview</p><h3>{activeItem?.file.name || "Select a file"}</h3></div><button className="ghost-button" type="button" disabled={!activeItem || activeIsVideo || previewing} onClick={() => void refreshPreview()}>{previewing ? <LoaderCircle className="spin" size={17} /> : <Sparkles size={17} />}Preview</button></div>
       <div className="preview-pair"><Preview label="Original" src={activeItem?.previewUrl} mediaType={activeItem?.mediaType} /><Preview label="Output" src={activeItem?.previewProcessedUrl} mediaType={activeItem?.mediaType} /></div>
-      <div className="output-summary"><strong>{selectedCount} files to {activeIsVideo ? "MP4 video cleanup" : getImageOutputSummary(settings)}</strong><span>{settings.geminiWatermarkRemoval === "on" ? "Gemini watermark cleanup on · " : ""}Estimated output: about {formatBytes(estimate)} · {settings.zipName}.zip</span></div>
+      <div className="output-summary"><strong>{selectedCount} files to {activeIsVideo ? "MP4 video cleanup" : getImageOutputSummary(settings)}</strong>{settings.geminiWatermarkRemoval === "on" ? <span>Gemini watermark cleanup on</span> : null}</div>
       {activeItem && activeItem.mediaType === "image" ? <div className="override-box"><p><strong>Only this image</strong> <span>Fine-tune its crop focal point without changing the batch.</span></p><Field label="Crop anchor"><select value={activeSettings.cropAnchor} onChange={(event) => updateOverride("cropAnchor", event.target.value as Settings["cropAnchor"])}><option value="center">Center</option><option value="top">Top</option><option value="bottom">Bottom</option><option value="left">Left</option><option value="right">Right</option><option value="focal">Manual focal point</option></select></Field>{activeSettings.cropAnchor === "focal" ? <div className="control-grid"><Field label={`Focal X: ${activeSettings.focalX}%`}><input type="range" min={0} max={100} value={activeSettings.focalX} onChange={(event) => updateOverride("focalX", Number(event.target.value))} /></Field><Field label={`Focal Y: ${activeSettings.focalY}%`}><input type="range" min={0} max={100} value={activeSettings.focalY} onChange={(event) => updateOverride("focalY", Number(event.target.value))} /></Field></div> : null}</div> : null}
       <button className="primary-button process-button" type="button" onClick={() => void onProcess()}><Play size={18} />Process {selectedCount} files</button>
     </aside>
@@ -350,3 +354,4 @@ function InfoTooltip({ label, children }: { label: string; children: React.React
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="field"><span>{label}</span>{children}</label>; }
 function Preview({ label, src, mediaType }: { label: string; src?: string; mediaType?: QueueItem["mediaType"] }) { return <figure className="preview-card"><figcaption>{label}</figcaption>{src ? mediaType === "video" ? <video src={src} controls muted preload="metadata" /> : <img src={src} alt={`${label} preview`} /> : <div className="preview-empty">{mediaType === "video" ? "Available after processing" : "Generate a preview"}</div>}</figure>; }
 export default App;
+                                                                             
