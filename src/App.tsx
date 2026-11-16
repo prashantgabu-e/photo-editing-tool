@@ -354,4 +354,3 @@ function InfoTooltip({ label, children }: { label: string; children: React.React
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="field"><span>{label}</span>{children}</label>; }
 function Preview({ label, src, mediaType }: { label: string; src?: string; mediaType?: QueueItem["mediaType"] }) { return <figure className="preview-card"><figcaption>{label}</figcaption>{src ? mediaType === "video" ? <video src={src} controls muted preload="metadata" /> : <img src={src} alt={`${label} preview`} /> : <div className="preview-empty">{mediaType === "video" ? "Available after processing" : "Generate a preview"}</div>}</figure>; }
 export default App;
-                                                                             
